@@ -67,7 +67,7 @@ export function UserForm({ user, onFormSubmit }: UserFormProps) {
       }
     }
     if (state?.status === "error" && state.message && state.errors) {
-        // Focar no primeiro campo com erro, se possível
+        // Focar no primeiro campo com erro
         const fieldErrors = state.errors;
         if (fieldErrors) {
             const firstErrorField = Object.keys(fieldErrors)[0] as keyof UserFormData | undefined;
@@ -78,7 +78,7 @@ export function UserForm({ user, onFormSubmit }: UserFormProps) {
     }
   }, [state, form, onFormSubmit]);
 
-  // Se estiver editando, popular o formulário com os dados do usuário
+  // aqui acho que posso popular o formulário com os dados do usuário
   useEffect(() => {
     if (user) {
       form.reset({

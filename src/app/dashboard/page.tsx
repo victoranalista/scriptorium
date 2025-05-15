@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { FileText, Users, CalendarDays, Search, UserCog, Baby, Heart, BookUser, ShieldAlert } from "lucide-react"; // Ícones para os cards
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Users, CalendarDays, Search, UserCog, Baby, Heart, BookUser, ShieldAlert } from "lucide-react"; 
 
 interface DashboardCardProps {
   title: string;
@@ -60,19 +60,19 @@ export default function DashboardPage() {
     {
       title: "Agendamentos",
       description: "Gerenciar agendamentos de cerimônias e atendimentos.",
-      href: "/agendamentos", // Placeholder, será implementado
+      href: "/agendamentos", 
       icon: <CalendarDays className="h-6 w-6 text-muted-foreground" />,
     },
     {
       title: "Consultar Registros",
       description: "Buscar e visualizar registros existentes.",
-      href: "/consultar-registros", // Placeholder, será implementado
+      href: "/consultar-registros", 
       icon: <Search className="h-6 w-6 text-muted-foreground" />,
     },
     {
       title: "Administração de Usuários",
       description: "Gerenciar usuários e permissões do sistema.",
-      href: "/admin/usuarios", // Placeholder, será implementado
+      href: "/admin/usuarios", 
       icon: <UserCog className="h-6 w-6 text-muted-foreground" />,
     },
   ];
@@ -96,17 +96,16 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Adicionar aqui seções de resumo, como "Registros Pendentes" ou "Próximos Agendamentos" no futuro */}
-      {/* Exemplo:
+      {/* Podemos adicionar aqui mudanças de layout tmb caso queiram */}
       <section className="mt-12">
         <h2 className="text-2xl font-semibold mb-4">Resumo</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
-              <CardTitle>Registros Pendentes</CardTitle>
+              <CardTitle>Registros Enviados</CardTitle>
             </CardHeader>
             <CardContent>
-              <p>Você tem X registros pendentes de aprovação.</p>
+              <p>Você tem X registros pendentes para envio a CRC/SIRC.</p>
             </CardContent>
           </Card>
           <Card>
@@ -119,7 +118,6 @@ export default function DashboardPage() {
           </Card>
         </div>
       </section>
-      */}
     </div>
   );
 }

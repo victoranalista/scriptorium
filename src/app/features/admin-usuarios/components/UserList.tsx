@@ -40,7 +40,7 @@ import { Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card"
 interface UserListProps {
   initialUsers: User[];
   onEditUser: (user: User) => void;
-  onRefreshNeeded: () => void; // Callback to tell parent to refresh users
+  onRefreshNeeded: () => void; 
 }
 
 const perfilOptions: UserProfile[] = ["Admin", "Oficial", "Escrevente"];
@@ -87,8 +87,8 @@ export function UserList({
     startTransition(async () => {
       const result = await deletarUsuarioAction(id);
       if (result.status === "success") {
-        // setUsers(prev => prev.filter(u => u.id !== id)); // Optimistic update
-        onRefreshNeeded(); // Tell parent to refresh
+        setUsers(prev => prev.filter(u => u.id !== id));
+        onRefreshNeeded(); 
         toast.success(
           result.message || `Usuário ${nome} deletado com sucesso!`
         );
