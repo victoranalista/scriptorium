@@ -1,9 +1,8 @@
 "use server";
-
-import { UserFormSchema, UserFormData } from "./validation";
-import { adminUsuariosService } from "./services";
-import { UserActionState, User } from "./types";
 import { revalidatePath } from "next/cache";
+import { adminUsuariosService } from "./services";
+import { User, UserActionState } from "./types";
+import { UserFormData, UserFormSchema } from "./validation";
 
 export async function criarOuAtualizarUsuarioAction(
   prevState: UserActionState | null,
@@ -58,7 +57,7 @@ export async function criarOuAtualizarUsuarioAction(
         // Por ora, o schema permite senha opcional, então prossegue.
       }
       resultUsuario = await adminUsuariosService.criarUsuario(validationResult.data as UserFormData);
-      actionMessage = "Usuário criado com sucesso!";
+actionMessage = "Usuário criado com sucesso!";
     }
     
     console.log("Resultado do serviço (Usuário):", resultUsuario);
