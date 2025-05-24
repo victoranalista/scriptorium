@@ -131,10 +131,3 @@ A escolha dessas tecnologias e ferramentas visa construir uma aplicação perfor
 2.  **Instale as dependências (se ainda não o fez):** `pnpm install`
 3.  **Execute o servidor de desenvolvimento:** `pnpm dev`
 4.  **Acesse no navegador:** Abra `http://localhost:3000/dashboard` 
-
-## 12. Próximos Passos Sugeridos
-
-*   Implementar a camada de persistência real (ex: com Prisma e um banco de dados PostgreSQL).
-*   Implementar autenticação e controle de acesso (RBAC).
-*   Adicionar testes unitários, de integração e E2E.
-*   Refinar o design e a UX conforme necessário.
