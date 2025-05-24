@@ -19,7 +19,6 @@ enum MaritalStatus {
   DIVORCED
   WIDOWED
   SEPARATED
-  STABLE_UNION
 }
 
 enum AppointmentType {
@@ -35,7 +34,6 @@ enum AppointmentStatus {
   CONFIRMED
   CANCELLED
   COMPLETED
-  NO_SHOW
 }
 
 enum PropertyRegime {
@@ -74,7 +72,7 @@ enum AddressType {
   OTHER
 }
 
-enum ResponsibleOfficerRole {
+enum OfficerRole {
   REGISTRAR
   NOTARY
   DEPUTY_REGISTRAR
@@ -83,19 +81,99 @@ enum ResponsibleOfficerRole {
   OTHER
 }
 
-model Location {
-  id          String  @id @default(uuid())
-  name        String  @db.VarChar(255)
-  city        String  @db.VarChar(100)
-  state       String  @db.VarChar(100)
-  country     String  @default("Brasil") @db.VarChar(100)
-  zipCode     String? @db.VarChar(10)
-  complement  String? @db.VarChar(255)
-  type        AddressType @default(OTHER)
-  coordinates String? @db.VarChar(100) // lat,lng
-  isActive    Boolean @default(true)
+model Person {
+  id            String        @id @default(uuid())
+  fullName      String        @db.VarChar(255)
+  gender        Gender?
+  birthDate     DateTime?     @db.Date
+  nationality   String?       @db.VarChar(100)
+  profession    String?       @db.VarChar(100)
+  maritalStatus MaritalStatus @default(SINGLE)
+  isActive      Boolean       @default(true)
+  createdAt     DateTime      @default(now()) @db.Timestamptz
+  updatedAt     DateTime      @updatedAt @db.Timestamptz
+  personalDocuments PersonalDocument[]
+  contactInfo       ContactInfo[]
+  addresses         PersonAddress[]
+  familyRelations   FamilyRelation[] @relation("PersonFamily")
+  birthAsChild      BirthRecord?       @relation("ChildBirth")
+  birthAsFather     BirthRecord[]      @relation("FatherBirth")
+  birthAsMother     BirthRecord[]      @relation("MotherBirth")
+  birthAsDeclarant  BirthRecord[]      @relation("DeclarantBirth")
+  deathRecord       Death?             @relation("DeceasedDeath")
+  deathAsDeclarant  Death[]            @relation("DeclarantDeath")
+  marriageAsSpouse1 Marriage[]         @relation("Spouse1Marriage")
+  marriageAsSpouse2 Marriage[]         @relation("Spouse2Marriage")
+  marriageAsWitness1 Marriage[]        @relation("Witness1Marriage")
+  marriageAsWitness2 Marriage[]        @relation("Witness2Marriage")
+  marriageAsOfficiant Marriage[]       @relation("OfficiantMarriage")
+  unionAsPartner1   StableUnion[]      @relation("Partner1Union")
+  unionAsPartner2   StableUnion[]      @relation("Partner2Union")
+  unionAsWitness1   StableUnion[]      @relation("Witness1Union")
+  unionAsWitness2   StableUnion[]      @relation("Witness2Union")
+  stillbirthAsMother    Stillbirth[]   @relation("MotherStillbirth")
+  stillbirthAsFather    Stillbirth[]   @relation("FatherStillbirth")
+  stillbirthAsFetus     Stillbirth[]   @relation("FetusStillbirth")
+  stillbirthAsDeclarant Stillbirth[]   @relation("DeclarantStillbirth")
+  primaryAppointments   Appointment[]  @relation("PrimaryAppointment")
+  secondaryAppointments Appointment[]  @relation("SecondaryAppointment")
+
+  @@index([fullName])
+  @@index([createdAt])
+  @@map("persons")
+  familyRelationsAsRelated FamilyRelation[] @relation("FamilyRelation_related")
+  familyRelationsAsOwner FamilyRelation[] @relation("FamilyRelation_owner")
+}
+
+// Responsabilidade: Gerenciar documentos pessoais (CPF, RG, etc.)
+model PersonalDocument {
+  id           String   @id @default(uuid())
+  personId     String
+  documentType String   @db.VarChar(50) // CPF, RG, CNH, etc.
+  documentNumber String @db.VarChar(50)
+  issuingBody  String?  @db.VarChar(100)
+  issueDate    DateTime? @db.Date
+  expiryDate   DateTime? @db.Date
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now()) @db.Timestamptz
+  updatedAt    DateTime @updatedAt @db.Timestamptz
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([personId, documentType, documentNumber])
+  @@index([documentType, documentNumber])
+  @@map("personal_documents")
+}
+
+// Responsabilidade: Gerenciar informações de contato
+model ContactInfo {
+  id          String   @id @default(uuid())
+  personId    String
+  contactType String   @db.VarChar(20) // EMAIL, PHONE, MOBILE
+  contactValue String  @db.VarChar(255)
+  isPrimary   Boolean  @default(false)
+  isActive    Boolean  @default(true)
   createdAt   DateTime @default(now()) @db.Timestamptz
   updatedAt   DateTime @updatedAt @db.Timestamptz
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([personId, contactType, contactValue])
+  @@index([contactType, contactValue])
+  @@map("contact_info")
+}
+
+// Responsabilidade: Gerenciar localizações/endereços
+model Location {
+  id         String      @id @default(uuid())
+  name       String      @db.VarChar(255)
+  city       String      @db.VarChar(100)
+  state      String      @db.VarChar(100)
+  country    String      @default("Brasil") @db.VarChar(100)
+  zipCode    String?     @db.VarChar(10)
+  complement String?     @db.VarChar(255)
+  type       AddressType @default(OTHER)
+  isActive   Boolean     @default(true)
+  createdAt  DateTime    @default(now()) @db.Timestamptz
+  updatedAt  DateTime    @updatedAt @db.Timestamptz
   personAddresses     PersonAddress[]
   eventLocations      EventLocation[]
   healthProfessionals HealthProfessional[]
@@ -106,54 +184,7 @@ model Location {
   @@map("locations")
 }
 
-model HealthProfessional {
-  id             String    @id @default(uuid())
-  fullName       String    @db.VarChar(255)
-  registrationNumber String @db.VarChar(20) 
-  registrationState  String? @db.VarChar(2)
-  specialty      String?   @db.VarChar(100)
-  locationId     String?
-  phone          String?   @db.VarChar(20)
-  email          String?   @db.VarChar(255)
-  isActive       Boolean   @default(true)
-  createdAt      DateTime  @default(now()) @db.Timestamptz
-  updatedAt      DateTime  @updatedAt @db.Timestamptz
-
-  location       Location? @relation(fields: [locationId], references: [id])
-  birthRecords   BirthRecord[]
-  stillbirths    Stillbirth[]
-  deaths         Death[]
-
-  @@unique([registrationNumber, registrationState])
-  @@index([fullName])
-  @@index([registrationNumber])
-  @@map("health_professionals")
-}
-
-model ResponsibleOfficer {
-  id          String                 @id @default(uuid())
-  fullName    String                 @db.VarChar(255)
-  role        ResponsibleOfficerRole
-  title       String?                @db.VarChar(100)
-  registration String?               @db.VarChar(50)
-  department  String?                @db.VarChar(100)
-  phone       String?                @db.VarChar(20)
-  email       String?                @db.VarChar(255)
-  isActive    Boolean                @default(true)
-  createdAt   DateTime               @default(now()) @db.Timestamptz
-  updatedAt   DateTime               @updatedAt @db.Timestamptz
-  appointments   Appointment[]
-  birthRecords   BirthRecord[]
-  stillbirths    Stillbirth[]
-  deaths         Death[]
-  marriages      Marriage[]
-  civilUnions    CivilUnion[]
-
-  @@index([role])
-  @@index([fullName])
-  @@map("responsible_officers")
-}
-
+// Responsabilidade: Relacionar pessoas com endereços
 model PersonAddress {
   id         String      @id @default(uuid())
   personId   String
@@ -162,77 +193,418 @@ model PersonAddress {
   isPrimary  Boolean     @default(false)
   isActive   Boolean     @default(true)
   createdAt  DateTime    @default(now()) @db.Timestamptz
-  person     Person      @relation(fields: [personId], references: [id], onDelete: Cascade)
-  location   Location    @relation(fields: [locationId], references: [id])
+  person   Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  location Location @relation(fields: [locationId], references: [id])
 
   @@unique([personId, locationId, type])
   @@index([personId])
   @@map("person_addresses")
 }
 
-model EventLocation {
-  id         String      @id @default(uuid())
-  recordType RecordType
-  recordId   String
-  locationId String
-  type       AddressType @default(EVENT_LOCATION)
-  description String?    @db.VarChar(255)
-  isActive   Boolean     @default(true)
-  createdAt  DateTime    @default(now()) @db.Timestamptz
-  location   Location    @relation(fields: [locationId], references: [id])
+model FamilyRelation {
+  id             String   @id @default(uuid())
+  personId       String
+  relatedPersonId String?
+  relationType   String   @db.VarChar(50) 
+  relationName   String   @db.VarChar(255) 
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now()) @db.Timestamptz
+  updatedAt      DateTime @updatedAt @db.Timestamptz
+  person           Person   @relation("FamilyRelation_owner", fields: [personId], references: [id], onDelete: Cascade)
+  relatedPerson    Person?  @relation("FamilyRelation_related", fields: [relatedPersonId], references: [id])
 
-  @@index([recordType, recordId])
-  @@index([locationId])
-  @@map("event_locations")
+  @@index([personId, relationType])
+  @@map("family_relations")
+  Person Person[] @relation("PersonFamily")
 }
 
-model Person {
-  id             String        @id @default(uuid())
-  fullName       String        @db.VarChar(255)
-  gender         Gender?
-  birthDate      DateTime?     @db.Date
-  nationality    String?       @db.VarChar(100)
-  profession     String?       @db.VarChar(100)
-  maritalStatus  MaritalStatus @default(SINGLE)
-  cpf            String?       @unique @db.VarChar(11)
-  rg             String?       @db.VarChar(20)
-  email          String?       @db.VarChar(255)
-  phone          String?       @db.VarChar(20)
-  fatherName     String?       @db.VarChar(255)
-  motherName     String?       @db.VarChar(255)
-  isActive       Boolean       @default(true)
-  createdAt      DateTime      @default(now()) @db.Timestamptz
-  updatedAt      DateTime      @updatedAt @db.Timestamptz
-  addresses                  PersonAddress[]
-  childBirths                BirthRecord[] @relation("ChildBirth")
-  fatherBirths               BirthRecord[] @relation("FatherBirth")
-  motherBirths               BirthRecord[] @relation("MotherBirth")
-  declarantBirths            BirthRecord[] @relation("DeclarantBirth")
-  primaryAppointments        Appointment[] @relation("PrimaryAppointment")
-  secondaryAppointments      Appointment[] @relation("SecondaryAppointment")
-  motherStillbirths          Stillbirth[]  @relation("MotherStillbirth")
-  fatherStillbirths          Stillbirth[]  @relation("FatherStillbirth")
-  fetusStillbirths           Stillbirth[]  @relation("FetusStillbirth")
-  declarantStillbirths       Stillbirth[]  @relation("DeclarantStillbirth")
-  deaths                     Death[]       @relation("DeceasedDeath")
-  declarantDeaths            Death[]       @relation("DeclarantDeath")
-  spouse1Marriages           Marriage[]    @relation("Spouse1Marriage")
-  spouse2Marriages           Marriage[]    @relation("Spouse2Marriage")
-  witness1Marriages          Marriage[]    @relation("Witness1Marriage")
-  witness2Marriages          Marriage[]    @relation("Witness2Marriage")
-  partner1Unions             CivilUnion[]  @relation("Partner1Union")
-  partner2Unions             CivilUnion[]  @relation("Partner2Union")
-  witness1Unions             CivilUnion[]  @relation("Witness1Union")
-  witness2Unions             CivilUnion[]  @relation("Witness2Union")
+// ========================= PROFISSIONAIS =========================
 
-  @@index([cpf])
+// Responsabilidade: Gerenciar médicos e profissionais de saúde
+model HealthProfessional {
+  id                String    @id @default(uuid())
+  fullName          String    @db.VarChar(255)
+  registrationNumber String   @db.VarChar(20)
+  registrationState String?   @db.VarChar(2)
+  specialty         String?   @db.VarChar(100)
+  locationId        String?
+  phone             String?   @db.VarChar(20)
+  email             String?   @db.VarChar(255)
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now()) @db.Timestamptz
+  updatedAt         DateTime  @updatedAt @db.Timestamptz
+  location     Location?     @relation(fields: [locationId], references: [id])
+  birthRecords BirthRecord[]
+  stillbirths  Stillbirth[]
+  deaths       Death[]
+
+  @@unique([registrationNumber, registrationState])
   @@index([fullName])
-  @@index([email])
-  @@index([createdAt])
-  @@map("persons")
-  Marriage Marriage[] @relation("OfficiantMarriage")
+  @@index([registrationNumber])
+  @@map("health_professionals")
 }
 
+// Responsabilidade: Gerenciar oficiais/funcionários responsáveis
+model ResponsibleOfficer {
+  id           String      @id @default(uuid())
+  fullName     String      @db.VarChar(255)
+  role         OfficerRole
+  title        String?     @db.VarChar(100)
+  registration String?     @db.VarChar(50)
+  department   String?     @db.VarChar(100)
+  phone        String?     @db.VarChar(20)
+  email        String?     @db.VarChar(255)
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now()) @db.Timestamptz
+  updatedAt    DateTime    @updatedAt @db.Timestamptz
+
+  @@index([role])
+  @@index([fullName])
+  @@map("responsible_officers")
+  OfficialRecords OfficialRecords[]
+  Appointment Appointment[]
+  BirthRecord BirthRecord[]
+  Stillbirth Stillbirth[]
+  Death Death[]
+  Marriage Marriage[]
+  StableUnion StableUnion[]
+}
+
+model OfficialRecords {
+  id            String @id @default(uuid())
+  recordType    RecordType
+  recordId      String
+  officerId     String
+  createdAt     DateTime @default(now()) @db.Timestamptz
+  updatedAt     DateTime @updatedAt @db.Timestamptz
+  appointments  Appointment[]
+  birthRecords  BirthRecord[]
+  stillbirths   Stillbirth[]
+  deaths        Death[]
+  marriages     Marriage[]
+  stableUnions  StableUnion[]
+  officer       ResponsibleOfficer  @relation(fields: [officerId], references: [id])
+
+  @@map("official_records")
+  @@index([recordType, recordId])
+}
+
+// ========================= AGENDAMENTOS =========================
+
+// Responsabilidade: Gerenciar agendamentos
+model Appointment {
+  id                   String            @id @default(uuid())
+  appointmentNumber    String?           @unique @db.VarChar(50)
+  type                 AppointmentType
+  scheduledDate        DateTime          @db.Date
+  scheduledTime        String            @db.VarChar(10)
+  duration             Int?              @db.SmallInt
+  primaryApplicantId   String
+  secondaryApplicantId String?
+  responsibleOfficerId String?
+  status               AppointmentStatus @default(PENDING)
+  isActive             Boolean           @default(true)
+  createdAt            DateTime          @default(now()) @db.Timestamptz
+  updatedAt            DateTime          @updatedAt @db.Timestamptz
+  primaryApplicant   Person              @relation("PrimaryAppointment", fields: [primaryApplicantId], references: [id], onDelete: Restrict)
+  secondaryApplicant Person?             @relation("SecondaryAppointment", fields: [secondaryApplicantId], references: [id], onDelete: Restrict)
+  responsibleOfficer ResponsibleOfficer? @relation(fields: [responsibleOfficerId], references: [id])
+  appointmentDetails AppointmentDetails?
+  statusHistory      AppointmentStatusHistory[]
+
+  @@index([scheduledDate, status])
+  @@index([type])
+  @@map("appointments")
+  AppointmentStatusHistory AppointmentStatusHistory[] @relation("AppointmentStatusHistory")
+  OfficialRecords OfficialRecords[]
+}
+
+// Responsabilidade: Gerenciar detalhes específicos dos agendamentos
+model AppointmentDetails {
+  id                   String  @id @default(uuid())
+  appointmentId        String  @unique
+  notes                String? @db.Text
+  internalNotes        String? @db.Text
+  confirmedAt          DateTime? @db.Timestamptz
+  completedAt          DateTime? @db.Timestamptz
+  cancelledAt          DateTime? @db.Timestamptz
+  cancellationReason   String? @db.Text
+  createdAt            DateTime @default(now()) @db.Timestamptz
+  updatedAt            DateTime @updatedAt @db.Timestamptz
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@map("appointment_details")
+}
+
+// Responsabilidade: Rastrear histórico de status dos agendamentos
+model AppointmentStatusHistory {
+  id            String            @id @default(uuid())
+  appointmentId String
+  status        AppointmentStatus
+  changedBy     String?           @db.VarChar(255)
+  reason        String?           @db.Text
+  createdAt     DateTime          @default(now()) @db.Timestamptz
+  appointment Appointment @relation("AppointmentStatusHistory", fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@index([appointmentId, createdAt])
+  @@map("appointment_status_history")
+  Appointment Appointment[]
+}
+
+// ========================= REGISTROS CIVIS =========================
+
+// Responsabilidade: Gerenciar registros de nascimento
+
+model BirthRecord {
+  id                      String   @id @default(uuid())
+  registrationNumber      String?  @unique @db.VarChar(50)
+  childId                 String   @unique
+  eventDateTime           DateTime @db.Timestamptz
+  gender                  Gender
+  attendingPhysicianId    String?
+  motherId                String
+  fatherId                String?
+  declarantId             String
+  responsibleOfficerId    String?
+  isActive                Boolean  @default(true)
+  createdAt               DateTime @default(now()) @db.Timestamptz
+  updatedAt               DateTime @updatedAt @db.Timestamptz
+  child              Person               @relation("ChildBirth", fields: [childId], references: [id], onDelete: Restrict)
+  father             Person?              @relation("FatherBirth", fields: [fatherId], references: [id], onDelete: Restrict)
+  mother             Person               @relation("MotherBirth", fields: [motherId], references: [id], onDelete: Restrict)
+  declarant          Person               @relation("DeclarantBirth", fields: [declarantId], references: [id], onDelete: Restrict)
+  attendingPhysician HealthProfessional?  @relation(fields: [attendingPhysicianId], references: [id])
+  responsibleOfficer ResponsibleOfficer?  @relation(fields: [responsibleOfficerId], references: [id])
+  birthDetails BirthDetails?
+
+  @@index([eventDateTime])
+  @@index([registrationNumber])
+  @@map("birth_records")
+  OfficialRecords OfficialRecords[]
+}
+
+// Responsabilidade: Detalhes médicos específicos do nascimento
+model BirthDetails {
+  id                      String  @id @default(uuid())
+  birthRecordId           String  @unique
+  color                   String? @db.VarChar(50)
+  isTwin                  Boolean @default(false)
+  twinOrder               Int?    @db.SmallInt
+  birthWeightGrams        Int?
+  birthLengthCm           Int?
+  gestationWeeks          Int?    @db.SmallInt
+  deliveryType            String? @db.VarChar(100)
+  paternalGrandfatherName String? @db.VarChar(255)
+  paternalGrandmotherName String? @db.VarChar(255)
+  maternalGrandfatherName String? @db.VarChar(255)
+  maternalGrandmotherName String? @db.VarChar(255)
+  notes                   String? @db.Text
+  createdAt               DateTime @default(now()) @db.Timestamptz
+  updatedAt               DateTime @updatedAt @db.Timestamptz
+  birthRecord BirthRecord @relation(fields: [birthRecordId], references: [id], onDelete: Cascade)
+
+  @@map("birth_details")
+}
+
+// Responsabilidade: Gerenciar registros de natimorto
+model Stillbirth {
+  id                   String              @id @default(uuid())
+  registrationNumber   String?             @unique @db.VarChar(50)
+  eventDateTime        DateTime            @db.Timestamptz
+  attendingPhysicianId String?
+  motherId             String
+  fatherId             String?
+  fetusId              String              @unique
+  declarantId          String
+  responsibleOfficerId String?
+  isActive             Boolean             @default(true)
+  createdAt            DateTime            @default(now()) @db.Timestamptz
+  updatedAt            DateTime            @updatedAt @db.Timestamptz
+  mother             Person               @relation("MotherStillbirth", fields: [motherId], references: [id], onDelete: Restrict)
+  father             Person?              @relation("FatherStillbirth", fields: [fatherId], references: [id], onDelete: Restrict)
+  fetus              Person               @relation("FetusStillbirth", fields: [fetusId], references: [id], onDelete: Restrict)
+  declarant          Person               @relation("DeclarantStillbirth", fields: [declarantId], references: [id], onDelete: Restrict)
+  attendingPhysician HealthProfessional?  @relation(fields: [attendingPhysicianId], references: [id])
+  responsibleOfficer ResponsibleOfficer?  @relation(fields: [responsibleOfficerId], references: [id])
+  stillbirthDetails StillbirthDetails?
+
+  @@index([eventDateTime])
+  @@index([registrationNumber])
+  @@map("stillbirths")
+  OfficialRecords OfficialRecords[]
+}
+
+// Responsabilidade: Detalhes médicos específicos do natimorto
+model StillbirthDetails {
+  id               String   @id @default(uuid())
+  stillbirthId     String   @unique
+  gestationWeeks   Int?     @db.SmallInt
+  birthWeightGrams Int?
+  birthLengthCm    Int?
+  deliveryType     String?  @db.VarChar(100)
+  causeOfDeath     String?  @db.Text
+  notes            String?  @db.Text
+  createdAt        DateTime @default(now()) @db.Timestamptz
+  updatedAt        DateTime @updatedAt @db.Timestamptz
+  stillbirth Stillbirth @relation(fields: [stillbirthId], references: [id], onDelete: Cascade)
+
+  @@map("stillbirth_details")
+}
+
+// Responsabilidade: Gerenciar registros de óbito
+model Death {
+  id                   String              @id @default(uuid())
+  registrationNumber   String?             @unique @db.VarChar(50)
+  eventDateTime        DateTime            @db.Timestamptz
+  causeOfDeath         String              @db.Text
+  attendingPhysicianId String
+  declarantId          String
+  personId             String              @unique
+  responsibleOfficerId String?
+  isActive             Boolean             @default(true)
+  createdAt            DateTime            @default(now()) @db.Timestamptz
+  updatedAt            DateTime            @updatedAt @db.Timestamptz
+  deceased           Person              @relation("DeceasedDeath", fields: [personId], references: [id], onDelete: Restrict)
+  declarant          Person              @relation("DeclarantDeath", fields: [declarantId], references: [id], onDelete: Restrict)
+  attendingPhysician HealthProfessional  @relation(fields: [attendingPhysicianId], references: [id])
+  responsibleOfficer ResponsibleOfficer? @relation(fields: [responsibleOfficerId], references: [id])
+  burialDetails BurialDetails?
+
+  @@index([eventDateTime])
+  @@index([registrationNumber])
+  @@map("deaths")
+  OfficialRecords OfficialRecords[]
+}
+
+// Responsabilidade: Gerenciar detalhes de sepultamento
+model BurialDetails {
+  id              String    @id @default(uuid())
+  deathId         String    @unique
+  burialPlace     String    @db.VarChar(255)
+  burialDate      DateTime? @db.Date
+  cemeterySection String?   @db.VarChar(100)
+  graveNumber     String?   @db.VarChar(50)
+  cremated        Boolean   @default(false)
+  cremationDate   DateTime? @db.Date
+  cremationPlace  String?   @db.VarChar(255)
+  notes           String?   @db.Text
+  createdAt       DateTime  @default(now()) @db.Timestamptz
+  updatedAt       DateTime  @updatedAt @db.Timestamptz
+  death Death @relation(fields: [deathId], references: [id], onDelete: Cascade)
+
+  @@map("burial_details")
+}
+
+// Responsabilidade: Gerenciar registros de casamento
+model Marriage {
+  id                   String              @id @default(uuid())
+  registrationNumber   String?             @unique @db.VarChar(50)
+  eventDateTime        DateTime            @db.Timestamptz
+  propertyRegime       PropertyRegime      @default(PARTIAL_COMMUNION)
+  spouse1Id            String
+  spouse2Id            String
+  officiantId          String?
+  responsibleOfficerId String?
+  witness1Id           String
+  witness2Id           String
+  isActive             Boolean             @default(true)
+  createdAt            DateTime            @default(now()) @db.Timestamptz
+  updatedAt            DateTime            @updatedAt @db.Timestamptz
+  spouse1            Person              @relation("Spouse1Marriage", fields: [spouse1Id], references: [id], onDelete: Restrict)
+  spouse2            Person              @relation("Spouse2Marriage", fields: [spouse2Id], references: [id], onDelete: Restrict)
+  officiant          Person?             @relation("OfficiantMarriage", fields: [officiantId], references: [id], onDelete: Restrict)
+  witness1           Person              @relation("Witness1Marriage", fields: [witness1Id], references: [id], onDelete: Restrict)
+  witness2           Person              @relation("Witness2Marriage", fields: [witness2Id], references: [id], onDelete: Restrict)
+  responsibleOfficer ResponsibleOfficer? @relation(fields: [responsibleOfficerId], references: [id])
+  marriageDetails MarriageDetails?
+
+  @@index([eventDateTime])
+  @@index([registrationNumber])
+  @@map("marriages")
+  OfficialRecords OfficialRecords[]
+}
+
+// Responsabilidade: Detalhes específicos do casamento
+model MarriageDetails {
+  id                String   @id @default(uuid())
+  marriageId        String   @unique
+  religiousCeremony Boolean  @default(false)
+  religiousLocation String?  @db.VarChar(255)
+  notes             String?  @db.Text
+  createdAt         DateTime @default(now()) @db.Timestamptz
+  updatedAt         DateTime @updatedAt @db.Timestamptz
+  marriage Marriage @relation(fields: [marriageId], references: [id], onDelete: Cascade)
+
+  @@map("marriage_details")
+}
+
+// Responsabilidade: Gerenciar registros de união estável
+model StableUnion {
+  id                   String              @id @default(uuid())
+  registrationNumber   String?             @unique @db.VarChar(50)
+  startDate            DateTime?           @db.Date
+  declarationDate      DateTime            @default(now()) @db.Date
+  propertyRegime       PropertyRegime?     @default(PARTIAL_COMMUNION)
+  partner1Id           String
+  partner2Id           String
+  witness1Id           String?
+  witness2Id           String?
+  responsibleOfficerId String?
+  isActive             Boolean             @default(true)
+  createdAt            DateTime            @default(now()) @db.Timestamptz
+  updatedAt            DateTime            @updatedAt @db.Timestamptz
+  partner1           Person              @relation("Partner1Union", fields: [partner1Id], references: [id], onDelete: Restrict)
+  partner2           Person              @relation("Partner2Union", fields: [partner2Id], references: [id], onDelete: Restrict)
+  witness1           Person?             @relation("Witness1Union", fields: [witness1Id], references: [id], onDelete: Restrict)
+  witness2           Person?             @relation("Witness2Union", fields: [witness2Id], references: [id], onDelete: Restrict)
+  responsibleOfficer ResponsibleOfficer? @relation(fields: [responsibleOfficerId], references: [id])
+  unionDetails UnionDetails?
+  children     UnionChild[]
+
+  @@index([startDate])
+  @@index([declarationDate])
+  @@index([registrationNumber])
+  @@map("stable_unions")
+  OfficialRecords OfficialRecords[]
+}
+
+// Responsabilidade: Detalhes específicos da união estável
+model UnionDetails {
+  id               String   @id @default(uuid())
+  unionId          String   @unique
+  mutualConsent    Boolean  @default(true)
+  cohabitationProof String? @db.Text
+  publicNotoriety  Boolean  @default(false)
+  duration         String?  @db.VarChar(100)
+  notes            String?  @db.Text
+  createdAt        DateTime @default(now()) @db.Timestamptz
+  updatedAt        DateTime @updatedAt @db.Timestamptz
+  union StableUnion @relation(fields: [unionId], references: [id], onDelete: Cascade)
+
+  @@map("union_details")
+}
+
+// Responsabilidade: Gerenciar filhos de união estável
+model UnionChild {
+  id               String      @id @default(uuid())
+  fullName         String      @db.VarChar(255)
+  birthDate        DateTime    @db.Date
+  unionId          String
+  relationshipType String      @db.VarChar(50)
+  notes            String?     @db.Text
+  isActive         Boolean     @default(true)
+  createdAt        DateTime    @default(now()) @db.Timestamptz
+  updatedAt        DateTime    @updatedAt @db.Timestamptz
+  union StableUnion @relation(fields: [unionId], references: [id], onDelete: Cascade)
+
+  @@index([unionId])
+  @@index([birthDate])
+  @@map("union_children")
+}
+
+// ========================= DOCUMENTOS E LOCALIZAÇÕES =========================
+
+// Responsabilidade: Gerenciar documentos anexados aos registros
 model Document {
   id          String           @id @default(uuid())
   recordType  RecordType
@@ -250,214 +622,21 @@ model Document {
 
   @@index([recordType, recordId])
   @@index([category])
-  @@index([createdAt])
   @@map("documents")
 }
 
-model BirthRecord {
-  id                         String      @id @default(uuid())
-  registrationNumber         String?     @unique @db.VarChar(50)
-  childId                    String
-  eventDateTime              DateTime    @db.Timestamptz
-  gender                     Gender
-  color                      String?     @db.VarChar(50)
-  isTwin                     Boolean     @default(false)
-  twinOrder                  Int?        @db.SmallInt
-  birthWeightGrams           Int?
-  birthLengthCm              Int?
-  gestationWeeks             Int?        @db.SmallInt
-  deliveryType               String?     @db.VarChar(100)
-  attendingPhysicianId       String?
-  fatherId                   String?
-  motherId                   String
-  declarantId                String
-  responsibleOfficerId       String?
-  paternalGrandfatherName    String?     @db.VarChar(255)
-  paternalGrandmotherName    String?     @db.VarChar(255)
-  maternalGrandfatherName    String?     @db.VarChar(255)
-  maternalGrandmotherName    String?     @db.VarChar(255)
-  notes                      String?     @db.Text
-  isActive                   Boolean     @default(true)
-  createdAt                  DateTime    @default(now()) @db.Timestamptz
-  updatedAt                  DateTime    @updatedAt @db.Timestamptz
+model EventLocation {
+  id          String      @id @default(uuid())
+  recordType  RecordType
+  recordId    String
+  locationId  String
+  type        AddressType @default(EVENT_LOCATION)
+  description String?     @db.VarChar(255)
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now()) @db.Timestamptz
+  location Location @relation(fields: [locationId], references: [id])
 
-  child                      Person               @relation("ChildBirth", fields: [childId], references: [id], onDelete: Restrict)
-  father                     Person?              @relation("FatherBirth", fields: [fatherId], references: [id], onDelete: Restrict)
-  mother                     Person               @relation("MotherBirth", fields: [motherId], references: [id], onDelete: Restrict)
-  declarant                  Person               @relation("DeclarantBirth", fields: [declarantId], references: [id], onDelete: Restrict)
-  attendingPhysician         HealthProfessional?  @relation(fields: [attendingPhysicianId], references: [id])
-  responsibleOfficer         ResponsibleOfficer?  @relation(fields: [responsibleOfficerId], references: [id])
-
-  @@index([eventDateTime])
-  @@index([registrationNumber])
-  @@map("birth_records")
-}
-
-model Appointment {
-  id                   String            @id @default(uuid())
-  appointmentNumber    String?           @unique @db.VarChar(50)
-  type                 AppointmentType
-  scheduledDate        DateTime          @db.Date
-  scheduledTime        String            @db.VarChar(10)
-  duration             Int?              @db.SmallInt
-  primaryApplicantId   String
-  secondaryApplicantId String?
-  responsibleOfficerId String?
-  notes                String?           @db.Text
-  internalNotes        String?           @db.Text
-  status               AppointmentStatus @default(PENDING)
-  confirmedAt          DateTime?         @db.Timestamptz
-  completedAt          DateTime?         @db.Timestamptz
-  cancelledAt          DateTime?         @db.Timestamptz
-  cancellationReason   String?           @db.Text
-  isActive             Boolean           @default(true)
-  createdAt            DateTime          @default(now()) @db.Timestamptz
-  updatedAt            DateTime          @updatedAt @db.Timestamptz
-  primaryApplicant     Person              @relation("PrimaryAppointment", fields: [primaryApplicantId], references: [id], onDelete: Restrict)
-  secondaryApplicant   Person?             @relation("SecondaryAppointment", fields: [secondaryApplicantId], references: [id], onDelete: Restrict)
-  responsibleOfficer   ResponsibleOfficer? @relation(fields: [responsibleOfficerId], references: [id])
-
-  @@index([scheduledDate, status])
-  @@index([type])
-  @@index([status])
-  @@map("appointments")
-}
-
-model Stillbirth {
-  id                   String               @id @default(uuid())
-  registrationNumber   String?              @unique @db.VarChar(50)
-  eventDateTime        DateTime             @db.Timestamptz
-  gestationWeeks       Int?                 @db.SmallInt
-  birthWeightGrams     Int?
-  birthLengthCm        Int?
-  deliveryType         String?              @db.VarChar(100)
-  causeOfDeath         String?              @db.Text
-  attendingPhysicianId String?
-  motherId             String
-  fatherId             String?
-  fetusId              String
-  declarantId          String
-  responsibleOfficerId String?
-  notes                String?              @db.Text
-  isActive             Boolean              @default(true)
-  createdAt            DateTime             @default(now()) @db.Timestamptz
-  updatedAt            DateTime             @updatedAt @db.Timestamptz
-  mother               Person               @relation("MotherStillbirth", fields: [motherId], references: [id], onDelete: Restrict)
-  father               Person?              @relation("FatherStillbirth", fields: [fatherId], references: [id], onDelete: Restrict)
-  fetus                Person               @relation("FetusStillbirth", fields: [fetusId], references: [id], onDelete: Restrict)
-  declarant            Person               @relation("DeclarantStillbirth", fields: [declarantId], references: [id], onDelete: Restrict)
-  attendingPhysician   HealthProfessional?  @relation(fields: [attendingPhysicianId], references: [id])
-  responsibleOfficer   ResponsibleOfficer?  @relation(fields: [responsibleOfficerId], references: [id])
-
-  @@index([eventDateTime])
-  @@index([registrationNumber])
-  @@map("stillbirths")
-}
-
-model Death {
-  id                   String               @id @default(uuid())
-  registrationNumber   String?              @unique @db.VarChar(50)
-  eventDateTime        DateTime             @db.Timestamptz
-  causeOfDeath         String               @db.Text
-  attendingPhysicianId String
-  declarantId          String
-  personId             String
-  responsibleOfficerId String?
-  burialPlace          String               @db.VarChar(255)
-  burialDate           DateTime?            @db.Date
-  cemeterySection      String?              @db.VarChar(100)
-  graveNumber          String?              @db.VarChar(50)
-  cremated             Boolean              @default(false)
-  cremationDate        DateTime?            @db.Date
-  cremationPlace       String?              @db.VarChar(255)
-  notes                String?              @db.Text
-  isActive             Boolean              @default(true)
-  createdAt            DateTime             @default(now()) @db.Timestamptz
-  updatedAt            DateTime             @updatedAt @db.Timestamptz
-  deceased             Person               @relation("DeceasedDeath", fields: [personId], references: [id], onDelete: Restrict)
-  declarant            Person               @relation("DeclarantDeath", fields: [declarantId], references: [id], onDelete: Restrict)
-  attendingPhysician   HealthProfessional   @relation(fields: [attendingPhysicianId], references: [id])
-  responsibleOfficer   ResponsibleOfficer?  @relation(fields: [responsibleOfficerId], references: [id])
-
-  @@index([eventDateTime])
-  @@index([registrationNumber])
-  @@map("deaths")
-}
-
-model Marriage {
-  id                   String              @id @default(uuid())
-  registrationNumber   String?             @unique @db.VarChar(50)
-  eventDateTime        DateTime            @db.Timestamptz
-  propertyRegime       PropertyRegime      @default(PARTIAL_COMMUNION)
-  spouse1Id            String
-  spouse2Id            String
-  officiantId          String?
-  responsibleOfficerId String?
-  witness1Id           String
-  witness2Id           String
-  religiousCeremony    Boolean             @default(false)
-  religiousLocation    String?             @db.VarChar(255)
-  notes                String?             @db.Text
-  isActive             Boolean             @default(true)
-  createdAt            DateTime            @default(now()) @db.Timestamptz
-  updatedAt            DateTime            @updatedAt @db.Timestamptz
-  spouse1              Person              @relation("Spouse1Marriage", fields: [spouse1Id], references: [id], onDelete: Restrict)
-  spouse2              Person              @relation("Spouse2Marriage", fields: [spouse2Id], references: [id], onDelete: Restrict)
-  officiant            Person?             @relation("OfficiantMarriage", fields: [officiantId], references: [id], onDelete: Restrict)
-  witness1             Person              @relation("Witness1Marriage", fields: [witness1Id], references: [id], onDelete: Restrict)
-  witness2             Person              @relation("Witness2Marriage", fields: [witness2Id], references: [id], onDelete: Restrict)
-  responsibleOfficer   ResponsibleOfficer? @relation(fields: [responsibleOfficerId], references: [id])
-
-  @@index([eventDateTime])
-  @@index([registrationNumber])
-  @@map("marriages")
-}
-
-model CivilUnion {
-  id                   String              @id @default(uuid())
-  registrationNumber   String?             @unique @db.VarChar(50)
-  startDate            DateTime?           @db.Date
-  declarationDate      DateTime            @default(now()) @db.Date
-  propertyRegime       PropertyRegime?     @default(PARTIAL_COMMUNION)
-  partner1Id           String
-  partner2Id           String
-  witness1Id           String?
-  witness2Id           String?
-  responsibleOfficerId String?
-  mutualConsent        Boolean             @default(true)
-  cohabitationProof    String?             @db.Text
-  publicNotoriety      Boolean             @default(false)
-  duration             String?             @db.VarChar(100)
-  notes                String?             @db.Text
-  isActive             Boolean             @default(true)
-  createdAt            DateTime            @default(now()) @db.Timestamptz
-  updatedAt            DateTime            @updatedAt @db.Timestamptz
-  partner1             Person              @relation("Partner1Union", fields: [partner1Id], references: [id], onDelete: Restrict)
-  partner2             Person              @relation("Partner2Union", fields: [partner2Id], references: [id], onDelete: Restrict)
-  witness1             Person?             @relation("Witness1Union", fields: [witness1Id], references: [id], onDelete: Restrict)
-  witness2             Person?             @relation("Witness2Union", fields: [witness2Id], references: [id], onDelete: Restrict)
-  responsibleOfficer   ResponsibleOfficer? @relation(fields: [responsibleOfficerId], references: [id])
-  children             UnionChild[]
-
-  @@index([startDate])
-  @@index([declarationDate])
-  @@index([registrationNumber])
-  @@map("civil_unions")
-}
-
-model UnionChild {
-  id               String     @id @default(uuid())
-  fullName         String     @db.VarChar(255)
-  birthDate        DateTime   @db.Date
-  unionId          String
-  relationshipType String     @db.VarChar(50)
-  notes            String?    @db.Text
-  isActive         Boolean    @default(true)
-  createdAt        DateTime   @default(now()) @db.Timestamptz
-  updatedAt        DateTime   @updatedAt @db.Timestamptz
-  union            CivilUnion @relation(fields: [unionId], references: [id], onDelete: Cascade)
-
-  @@index([unionId])
-  @@index([birthDate])
-  @@map("union_children")
+  @@index([recordType, recordId])
+  @@index([locationId])
+  @@map("event_locations")
 }
